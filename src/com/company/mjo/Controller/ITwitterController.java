@@ -3,6 +3,8 @@ package com.company.mjo.Controller;
 import com.company.mjo.Model.ITwitterModel;
 import com.company.mjo.View.ITwitterView;
 
+import java.io.IOException;
+
 /**
  * Created by mjo on 10/17/2014.
  *
@@ -17,13 +19,13 @@ public interface ITwitterController
    * @param consumerKey Consumer Key from dev.twitter.com
    * @param consumerSecret Consumer Secret from dev.twitter.com
    */
-  public void validateCredentials(String consumerKey, String consumerSecret);
+  public void validateCredentials(String consumerKey, String consumerSecret) throws IOException;
 
   /**
    * Retrieve tweet from Twitter timeline and display.
    * @param accountName Public Twitter Account, ie. twitterapi
    */
-  public void displayTimelineTweet(String accountName);
+  public void displayTimelineTweet(String accountName) throws IOException;
 
   /**
    * Appends text in status view.

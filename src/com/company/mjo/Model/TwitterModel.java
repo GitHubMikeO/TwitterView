@@ -57,6 +57,7 @@ public class TwitterModel implements ITwitterModel
   @Override
   public void validateCredentials(final TwitterOAuthCredentials newTwitterOAuthCredentials) throws IOException
   {
+    System.out.printf("Credentials to validated: Key: %s, Secret: %s", newTwitterOAuthCredentials.getOAuthConsumerKey(), newTwitterOAuthCredentials.getOAuthConsumerSecret());
     propertyChangeSupport.firePropertyChange("TwitterOAuthCredentials", oAuthCredentials.toString(), newTwitterOAuthCredentials.toString());
     oAuthCredentials = newTwitterOAuthCredentials;
 
@@ -86,8 +87,7 @@ public class TwitterModel implements ITwitterModel
 
       // Parse the JSON response into a JSON mapped object to fetch fields from.
       jsonArray = (JSONArray)JSONValue.parse(readResponse(con));
-
-    }
+  }
     finally
     {
       if (con != null)
@@ -98,44 +98,42 @@ public class TwitterModel implements ITwitterModel
 
   private void requestBearerToken() throws IOException
   {
-    //Only need to get bearer token once.
-    if(twitterBearerToken == null)
+    // Do the OAUTH2 Authenticate
+    String oAuthTokenUrl = "https://api.twitter.com/oauth2/token";
+    URL tokenURL = new URL(oAuthTokenUrl);
+
+    HttpsURLConnection con = (HttpsURLConnection) tokenURL.openConnection();
+    con.setDoOutput(true);
+    con.setDoInput(true);
+    con.setRequestMethod("POST");
+    con.setRequestProperty("Host", "api.twitter.com");
+    con.setRequestProperty("Authorization", "Basic " + encodeKeys(oAuthCredentials));
+    con.setRequestProperty("Content-Type", "application/x-www-form-urlencoded;charset=UTF-8");
+    con.setUseCaches(false);
+
+    writeRequest(con, "grant_type=client_credentials");
+
+    // Parse the JSON response into a JSON mapped object to fetch fields from.
+   JSONObject obj = (JSONObject) JSONValue.parse(readResponse(con));
+
+    if (obj == null)
+      throw new IOException("Bearer token request failed.");  //TODO: add to ResourceBundle
+    else
     {
-      // Do the OAUTH2 Authenticate
-      String oAuthTokenUrl = "https://api.twitter.com/oauth2/token";
-      URL tokenURL = new URL(oAuthTokenUrl);
+      String tokenType = (String) obj.get("token_type");
+      String accessToken = (String) obj.get("access_token");
 
-      HttpsURLConnection con = (HttpsURLConnection) tokenURL.openConnection();
-      con.setDoOutput(true);
-      con.setDoInput(true);
-      con.setRequestMethod("POST");
-      con.setRequestProperty("Host", "api.twitter.com");
-      con.setRequestProperty("Authorization", "Basic " + encodeKeys(oAuthCredentials));
-      con.setRequestProperty("Content-Type", "application/x-www-form-urlencoded;charset=UTF-8");
-      con.setUseCaches(false);
-
-      writeRequest(con, "grant_type=client_credentials");
-
-      // Parse the JSON response into a JSON mapped object to fetch fields from.
-     JSONObject obj = (JSONObject) JSONValue.parse(readResponse(con));
-
-      if (obj != null)
+      if(tokenType.equals("bearer") && (accessToken != null))
       {
-        String tokenType = (String) obj.get("token_type");
-        String accessToken = (String) obj.get("access_token");
+        twitterBearerToken = new TwitterBearerToken();
+        twitterBearerToken.setTokenType(tokenType);
+        twitterBearerToken.setAccessToken(accessToken);
 
-        if(tokenType.equals("bearer") && (accessToken != null))
-        {
-          twitterBearerToken = new TwitterBearerToken();
-          twitterBearerToken.setTokenType(tokenType);
-          twitterBearerToken.setAccessToken(accessToken);
-
-          controller.appendStatus("token_type: " + twitterBearerToken.getTokenType());
-          controller.appendStatus("access_token: " + twitterBearerToken.getAccessToken());
-        }
+        controller.appendStatus("token_type: " + twitterBearerToken.getTokenType());      //TODO: add to ResourceBundle
+        controller.appendStatus("access_token: " + twitterBearerToken.getAccessToken());  //TODO: add to ResourceBundle
       }
-      con.disconnect();
     }
+    con.disconnect();
   }
 
   /**
@@ -162,47 +160,26 @@ public class TwitterModel implements ITwitterModel
   }
 
   // Writes a request to a connection
-  private static boolean writeRequest(HttpsURLConnection connection, String textBody)
+  private static void writeRequest(HttpsURLConnection connection, String textBody) throws IOException
   {
-    try
-    {
       BufferedWriter wr = new BufferedWriter(new OutputStreamWriter(connection.getOutputStream()));
       wr.write(textBody);
       wr.flush();
       wr.close();
-      return true;
-    }
-    catch (IOException e)
-    {
-      //change to logger
-      e.printStackTrace();
-
-      return false;
-    }
   }
 
   // Reads a response for a given connection and returns it as a string.
-  private static String readResponse(HttpsURLConnection connection)
+  private static String readResponse(HttpsURLConnection connection) throws IOException
   {
-    try
-    {
-      StringBuilder str = new StringBuilder();
-      BufferedReader br = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+    StringBuilder str = new StringBuilder();
+    BufferedReader br = new BufferedReader(new InputStreamReader(connection.getInputStream()));
 
-      String line;
-      while((line = br.readLine()) != null)
-      {
-        str.append(line).append(System.getProperty("line.separator"));
-      }
-      return str.toString();
-    }
-    catch (IOException e)
+    String line;
+    while((line = br.readLine()) != null)
     {
-      //change to logger
-      e.printStackTrace();
-
-      return "";
+      str.append(line).append(System.getProperty("line.separator"));
     }
+    return str.toString();
   }
 }
 

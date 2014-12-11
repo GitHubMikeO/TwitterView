@@ -54,7 +54,7 @@ public class TwitterController implements ITwitterController, PropertyChangeList
   }
 
   @Override
-  public void validateCredentials(final String consumerKey, final String consumerSecret)
+  public void validateCredentials(final String consumerKey, final String consumerSecret) throws IOException
   {
     if(twitterOAuthCredentials == null)
       twitterOAuthCredentials = new TwitterOAuthCredentials();
@@ -62,35 +62,31 @@ public class TwitterController implements ITwitterController, PropertyChangeList
     twitterOAuthCredentials.setOAuthConsumerKey(consumerKey);
     twitterOAuthCredentials.setOAuthConsumerSecret(consumerSecret);
 
-    try
+    //simulate long running operation
+    for(int i = 1; i<=3; i++)
     {
-      model.validateCredentials(twitterOAuthCredentials);
+      appendStatus("Update from non event dispatch thread: " + i);  //TODO: add to ResourceBundle
+      try
+      {
+        Thread.sleep(1000);
+      }
+      catch (InterruptedException e)
+      {
+        e.printStackTrace();
+      }
     }
-    catch (IOException e)
-    {
-      //add logger
-      e.printStackTrace();
-      appendStatus(e.getMessage());
-    }
+
+    model.validateCredentials(twitterOAuthCredentials);
   }
 
   @Override
-  public void displayTimelineTweet(final String accountName)
+  public void displayTimelineTweet(final String accountName) throws IOException
   {
-    try
+    JSONArray tweets = model.getTimelineTweet(accountName);
+    if (tweets != null)
     {
-      JSONArray tweets = model.getTimelineTweet(accountName);
-      if (tweets != null)
-      {
-        for (Object tweet : tweets)
-          appendStatus("TWEET: " + ((JSONObject) tweet).get("text").toString());
-      }
-    }
-    catch (IOException e)
-    {
-      //add logger
-      e.printStackTrace();
-      appendStatus(e.getMessage());
+      for (Object tweet : tweets)
+        appendStatus("TWEET: " + ((JSONObject) tweet).get("text").toString());
     }
   }
 
